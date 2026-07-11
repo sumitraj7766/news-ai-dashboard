@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = "https://news-ai-dashboard-1.onrender.com";
 
 export const registerUser = async (userData) => {
   const response = await fetch(`${BASE_URL}/auth/register`, {
