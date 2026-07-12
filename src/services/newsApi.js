@@ -14,6 +14,10 @@ export const fetchNews = async (
   const response = await fetch(
     `${BACKEND_URL}/api/news?${params.toString()}`
   );
+  console.log(
+  "Production backend URL:",
+  import.meta.env.VITE_BACKEND_URL
+);
 
   const data = await response.json();
 
@@ -22,6 +26,7 @@ export const fetchNews = async (
       data.message || "Failed to load articles"
     );
   }
+
 
   return data.articles || [];
 };
