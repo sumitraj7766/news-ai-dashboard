@@ -21,6 +21,38 @@ const allowedOrigins = [
 app.use(
   cors({
     origin(origin, callback) {
+      const isAllowedVercelDomain =
+        typeof origin === "string" &&
+        origin.endsWith(".vercel.app");
+
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        isAllowedVercelDomain
+      ) {
+        return callback(null, true);
+      }
+
+      console.error("Blocked CORS origin:", origin);
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
+app.use((error, req, res, next) => {
+  if (error.message === "Not allowed by CORS") {
+    return res.status(403).json({
+      message: "Frontend origin is not allowed by CORS",
+    });
+  }
+
+  return next(error);
+});
+
+app.use(
+  cors({
+    origin(origin, callback) {
       if (!origin || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
