@@ -1,7 +1,10 @@
-const BASE_URL = "https://news-ai-dashboard-1.onrender.com";
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+
+const AUTH_URL = `${BACKEND_URL}/api/auth`;
 
 export const registerUser = async (userData) => {
-  const response = await fetch(`${BASE_URL}/auth/register`, {
+  const response = await fetch(`${AUTH_URL}/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -19,7 +22,7 @@ export const registerUser = async (userData) => {
 };
 
 export const loginUser = async (userData) => {
-  const response = await fetch(`${BASE_URL}/auth/login`, {
+  const response = await fetch(`${AUTH_URL}/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

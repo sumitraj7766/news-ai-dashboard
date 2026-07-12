@@ -1,56 +1,35 @@
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  "http://localhost:5000";
 
-export const summarizeArticle = async (text) => {
-  if (!GEMINI_KEY) {
-    throw new Error("Gemini API key is missing");
-  }
-
+export const summarizeArticle = async (articleText) => {
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
+    `${BACKEND_URL}/api/ai/summarize`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `Summarize the following news article in exactly 3 short bullet points.
-
-Article:
-
-${text}
-
-Return only 3 bullet points.`,
-              },
-            ],
-          },
-        ],
-      }),
+      body: JSON.stringify({ articleText }),
     }
   );
 
-  const data = await response.json();
+  const contentType =
+    response.headers.get("content-type") || "";
 
-  console.log("Gemini Response:", data);
-
-  if (!response.ok) {
+  if (!contentType.includes("application/json")) {
     throw new Error(
-      data.error?.message || "Failed to generate AI summary"
+      `Backend error: ${response.status}`
     );
   }
 
-  const summary =
-    data.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text || "")
-      .join("\n")
-      .trim();
+  const data = await response.json();
 
-  if (!summary) {
-    throw new Error("Gemini returned an empty summary");
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to generate summary"
+    );
   }
 
-  return summary;
+  return data.summary;
 };

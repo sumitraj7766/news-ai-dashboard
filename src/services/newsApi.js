@@ -1,25 +1,27 @@
-import axios from "axios";
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  "http://localhost:5000";
 
-const API_KEY = import.meta.env.VITE_NEWS_API_KEY;
+export const fetchNews = async (
+  category = "technology",
+  search = ""
+) => {
+  const params = new URLSearchParams({
+    category,
+    search: search.trim(),
+  });
 
-export const fetchNews = async (category = "technology", search = "") => {
-  const query = search.trim();
-  const cacheKey = query ? `news-search-${query}` : `news-category-${category}`;
+  const response = await fetch(
+    `${BACKEND_URL}/api/news?${params.toString()}`
+  );
 
-  const cachedData = sessionStorage.getItem(cacheKey);
+  const data = await response.json();
 
-  if (cachedData) {
-    return JSON.parse(cachedData);
+  if (!response.ok || data.status === "error") {
+    throw new Error(
+      data.message || "Failed to load articles"
+    );
   }
 
-  const url = query
-    ? `https://newsapi.org/v2/everything?q=${query}&language=en&apiKey=${API_KEY}`
-    : `https://newsapi.org/v2/top-headlines?country=us&category=${category}&apiKey=${API_KEY}`;
-
-  const response = await axios.get(url);
-  const articles = response.data.articles || [];
-
-  sessionStorage.setItem(cacheKey, JSON.stringify(articles));
-
-  return articles;
+  return data.articles || [];
 };

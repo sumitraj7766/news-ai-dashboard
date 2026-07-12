@@ -1,57 +1,126 @@
-
+import { useEffect, useState } from "react";
 import { fetchNews } from "../services/newsApi";
 import { summarizeArticle } from "../services/geminiApi";
+import { saveSummaryToBackend } from "../services/summaryApi";
 import Loader from "../components/Loader";
 import NoArticles from "../components/NoArticles";
-import { useCallback, useEffect, useState } from "react";
-import { saveSummaryToBackend } from "../services/summaryApi";
-
 
 export default function Home({ user }) {
   const [articles, setArticles] = useState([]);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [category, setCategory] = useState("technology");
   const [search, setSearch] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [saveMessage, setSaveMessage] = useState("");
 
   const [summary, setSummary] = useState("");
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState("");
 
-  const categories = ["business", "technology", "sports", "health"];
+  const [saveMessage, setSaveMessage] = useState("");
 
-  const loadNews = useCallback(async () => {
-  try {
-    setLoading(true);
-    setError("");
-    setSelectedArticle(null);
-    setSummary("");
-    setSummaryError("");
+  const categories = [
+    "business",
+    "technology",
+    "sports",
+    "health",
+  ];
 
-    const data = await fetchNews(category, search);
-    setArticles(data);
-  } catch {
-    setError("Failed to load articles. Please try again.");
-    setArticles([]);
-  } finally {
-    setLoading(false);
-  }
-}, [category, search]);
+  const loadNews = async (
+    selectedCategory = category,
+    keyword = ""
+  ) => {
+    try {
+      setLoading(true);
+      setError("");
+      setSelectedArticle(null);
+      setSummary("");
+      setSummaryError("");
+      setSaveMessage("");
 
-useEffect(() => {
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  loadNews();
-}, [loadNews]);
+      const data = await fetchNews(
+        selectedCategory,
+        keyword
+      );
+
+      setArticles(data);
+    } catch (err) {
+      console.error("News loading error:", err);
+
+      setError(
+        err.message ||
+          "Failed to load articles. Please try again."
+      );
+
+      setArticles([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const loadInitialNews = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const data = await fetchNews(
+          "technology",
+          ""
+        );
+
+        setArticles(data);
+      } catch (err) {
+        console.error(
+          "Initial news loading error:",
+          err
+        );
+
+        setError(
+          err.message ||
+            "Failed to load articles. Please try again."
+        );
+
+        setArticles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialNews();
+  }, []);
+
+  const handleCategoryClick = (selectedCategory) => {
+    setCategory(selectedCategory);
+    setSearch("");
+
+    loadNews(selectedCategory, "");
+  };
+
+  const handleSearch = () => {
+    loadNews(category, search);
+  };
 
   const handleSelectArticle = (article) => {
     setSelectedArticle(article);
     setSummary("");
     setSummaryError("");
+    setSaveMessage("");
+  };
+
+  const handleBack = () => {
+    setSelectedArticle(null);
+    setSummary("");
+    setSummaryError("");
+    setSaveMessage("");
   };
 
   const handleSummarize = async () => {
+    if (!selectedArticle) {
+      return;
+    }
+
     try {
       setSummaryLoading(true);
       setSummaryError("");
@@ -59,50 +128,81 @@ useEffect(() => {
 
       const articleText = `
 Title: ${selectedArticle.title}
-Description: ${selectedArticle.description || "No description"}
-Content: ${selectedArticle.content || selectedArticle.description || selectedArticle.title}
+Description: ${
+        selectedArticle.description ||
+        "No description available"
+      }
+Content: ${
+        selectedArticle.content ||
+        selectedArticle.description ||
+        selectedArticle.title
+      }
 `;
 
-      const result = await summarizeArticle(articleText);
+      const result = await summarizeArticle(
+        articleText
+      );
+
       setSummary(result);
-    } catch  {
-      setSummaryError("Failed to generate summary.");
+    } catch (err) {
+      console.error(
+        "Summary generation error:",
+        err
+      );
+
+      setSummaryError(
+        err.message ||
+          "Failed to generate summary."
+      );
     } finally {
       setSummaryLoading(false);
     }
   };
 
   const saveSummary = async () => {
-  if (!summary || !selectedArticle) {
-    return;
-  }
+    if (!summary || !selectedArticle) {
+      return;
+    }
 
-  if (!user) {
-    setSaveMessage("Please login before saving a summary.");
-    return;
-  }
+    if (!user) {
+      setSaveMessage(
+        "Please login before saving a summary."
+      );
+      return;
+    }
 
-  try {
-    setSaveMessage("Saving summary...");
+    try {
+      setSaveMessage("Saving summary...");
 
-    await saveSummaryToBackend({
-      title: selectedArticle.title,
-      source: selectedArticle.source?.name || "Unknown",
-      summary,
-      articleUrl: selectedArticle.url,
-      imageUrl: selectedArticle.urlToImage || "",
-      publishedAt: selectedArticle.publishedAt || "",
-    });
+      await saveSummaryToBackend({
+        title: selectedArticle.title,
+        source:
+          selectedArticle.source?.name ||
+          "Unknown",
+        summary,
+        articleUrl: selectedArticle.url,
+        imageUrl:
+          selectedArticle.urlToImage || "",
+        publishedAt:
+          selectedArticle.publishedAt || "",
+      });
 
-    setSaveMessage("Summary saved successfully!");
-  } catch (error) {
-    setSaveMessage(error.message);
-  }
+      setSaveMessage(
+        "Summary saved successfully!"
+      );
+    } catch (err) {
+      console.error("Save summary error:", err);
 
-  setTimeout(() => {
-    setSaveMessage("");
-  }, 3000);
-};
+      setSaveMessage(
+        err.message ||
+          "Failed to save summary."
+      );
+    }
+
+    setTimeout(() => {
+      setSaveMessage("");
+    }, 3000);
+  };
 
   return (
     <div className="container">
@@ -113,87 +213,226 @@ Content: ${selectedArticle.content || selectedArticle.description || selectedArt
           type="text"
           placeholder="Search news..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) =>
+            setSearch(event.target.value)
+          }
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              handleSearch();
+            }
+          }}
         />
-        <button onClick={loadNews}>Search</button>
+
+        <button
+          type="button"
+          onClick={handleSearch}
+          disabled={loading}
+        >
+          Search
+        </button>
       </div>
 
       <div className="tabs">
-        {categories.map((cat) => (
+        {categories.map((item) => (
           <button
-            key={cat}
-            className={category === cat ? "active" : ""}
-            onClick={() => setCategory(cat)}
+            type="button"
+            key={item}
+            className={
+              category === item ? "active" : ""
+            }
+            onClick={() =>
+              handleCategoryClick(item)
+            }
+            disabled={loading}
           >
-            {cat.toUpperCase()}
+            {item.toUpperCase()}
           </button>
         ))}
       </div>
 
       {loading && <Loader />}
-      {error && <h2>{error}</h2>}
 
-      {!loading && !error && articles.length === 0 && (
-        <NoArticles />
-      )}
+      {!loading && error && (
+        <div className="no-articles">
+          <h2>Unable to load news</h2>
+          <p>{error}</p>
 
-      {selectedArticle && (
-        <div className="detail">
-          <button onClick={() => setSelectedArticle(null)}>Back</button>
-
-          <img
-            src={selectedArticle.urlToImage || "https://via.placeholder.com/800"}
-            alt={selectedArticle.title}
-          />
-
-          <h2>{selectedArticle.title}</h2>
-          <p><b>Source:</b> {selectedArticle.source?.name}</p>
-          <p><b>Author:</b> {selectedArticle.author || "Unknown"}</p>
-          <p><b>Published:</b> {new Date(selectedArticle.publishedAt).toLocaleString()}</p>
-          <p>{selectedArticle.description}</p>
-          <p>{selectedArticle.content}</p>
-
-          <a href={selectedArticle.url} target="_blank" rel="noreferrer">
-            Read Full Article
-          </a>
-
-          <button onClick={handleSummarize} className="summary-btn">
-            Summarise
-            
+          <button
+            type="button"
+            onClick={() =>
+              loadNews(category, search)
+            }
+          >
+            Try Again
           </button>
-          {saveMessage && <p className="save-message">{saveMessage}</p>}
-
-          {summaryLoading && <p>Generating summary...</p>}
-          {summaryError && <p>{summaryError}</p>}
-
-          {summary && (
-            <div className="summary-box">
-              <h3>AI Summary</h3>
-              <p>{summary}</p>
-              <button onClick={saveSummary}>Save Summary</button>
-            </div>
-          )}
         </div>
       )}
 
-      {!selectedArticle && (
-        <div className="articles">
-          {articles.map((article, index) => (
-            <div
-              className="card"
-              key={index}
-              onClick={() => handleSelectArticle(article)}
+      {!loading &&
+        !error &&
+        articles.length === 0 && (
+          <NoArticles />
+        )}
+
+      {!loading &&
+        !error &&
+        selectedArticle && (
+          <div className="detail">
+            <button
+              type="button"
+              onClick={handleBack}
             >
-              <img
-                src={article.urlToImage || "https://via.placeholder.com/300"}
-                alt={article.title}
-              />
-              <h3>{article.title}</h3>
-              <p>{article.source?.name}</p>
+              ← Back
+            </button>
+
+            <img
+              src={
+                selectedArticle.urlToImage ||
+                "https://via.placeholder.com/800"
+              }
+              alt={selectedArticle.title}
+            />
+
+            <h2>{selectedArticle.title}</h2>
+
+            <p>
+              <b>Source:</b>{" "}
+              {selectedArticle.source?.name ||
+                "Unknown"}
+            </p>
+
+            <p>
+              <b>Author:</b>{" "}
+              {selectedArticle.author ||
+                "Unknown"}
+            </p>
+
+            <p>
+              <b>Published:</b>{" "}
+              {selectedArticle.publishedAt
+                ? new Date(
+                    selectedArticle.publishedAt
+                  ).toLocaleString()
+                : "Not available"}
+            </p>
+
+            <p>
+              {selectedArticle.description ||
+                "No description available."}
+            </p>
+
+            <p>
+              {selectedArticle.content ||
+                "Open the original article to read more."}
+            </p>
+
+            <div className="detail-actions">
+              <a
+                href={selectedArticle.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Read Full Article
+              </a>
+
+              <button
+                type="button"
+                onClick={handleSummarize}
+                className="summary-btn"
+                disabled={summaryLoading}
+              >
+                {summaryLoading
+                  ? "Summarising..."
+                  : "Summarise"}
+              </button>
             </div>
-          ))}
-        </div>
-      )}
+
+            {summaryError && (
+              <p className="error-message">
+                {summaryError}
+              </p>
+            )}
+
+            {summary && (
+              <div className="summary-box">
+                <h3>AI Summary</h3>
+
+                <div className="summary-text">
+                  {summary
+                    .split("\n")
+                    .map((line, index) =>
+                      line.trim() ? (
+                        <p key={index}>
+                          {line}
+                        </p>
+                      ) : null
+                    )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={saveSummary}
+                >
+                  Save Summary
+                </button>
+
+                {saveMessage && (
+                  <p className="save-message">
+                    {saveMessage}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+      {!loading &&
+        !error &&
+        !selectedArticle && (
+          <div className="articles">
+            {articles.map(
+              (article, index) => (
+                <div
+                  className="card"
+                  key={
+                    article.url ||
+                    `${article.title}-${index}`
+                  }
+                  onClick={() =>
+                    handleSelectArticle(article)
+                  }
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" ||
+                      event.key === " "
+                    ) {
+                      handleSelectArticle(
+                        article
+                      );
+                    }
+                  }}
+                >
+                  <img
+                    src={
+                      article.urlToImage ||
+                      "https://via.placeholder.com/300"
+                    }
+                    alt={article.title}
+                  />
+
+                  <h3>{article.title}</h3>
+
+                  <p>
+                    {article.source?.name ||
+                      "Unknown source"}
+                  </p>
+                </div>
+              )
+            )}
+          </div>
+        )}
     </div>
   );
 }

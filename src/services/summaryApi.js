@@ -1,6 +1,24 @@
-const BASE_URL = "https://news-ai-dashboard-1.onrender.com/api/auth";
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+
+const BASE_URL = `${BACKEND_URL}/api/user`;
 
 const getToken = () => localStorage.getItem("token");
+
+const parseResponse = async (response) => {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (!contentType.includes("application/json")) {
+    const text = await response.text();
+    console.error("Non-JSON backend response:", text);
+
+    throw new Error(
+      `Backend error: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return response.json();
+};
 
 export const saveSummaryToBackend = async (summaryData) => {
   const token = getToken();
@@ -18,7 +36,7 @@ export const saveSummaryToBackend = async (summaryData) => {
     body: JSON.stringify(summaryData),
   });
 
-  const data = await response.json();
+  const data = await parseResponse(response);
 
   if (!response.ok) {
     throw new Error(data.message || "Failed to save summary");
@@ -41,7 +59,7 @@ export const fetchSummariesFromBackend = async () => {
     },
   });
 
-  const data = await response.json();
+  const data = await parseResponse(response);
 
   if (!response.ok) {
     throw new Error(data.message || "Failed to fetch summaries");
@@ -67,7 +85,7 @@ export const deleteSummaryFromBackend = async (summaryId) => {
     }
   );
 
-  const data = await response.json();
+  const data = await parseResponse(response);
 
   if (!response.ok) {
     throw new Error(data.message || "Failed to delete summary");

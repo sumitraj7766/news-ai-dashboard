@@ -4,26 +4,60 @@ const router = express.Router();
 
 router.get("/", async (req, res) => {
   try {
-    const category = req.query.category || "technology";
-    const search = req.query.search || "";
+    const category =
+      req.query.category || "technology";
 
-    let url;
+    const search =
+      req.query.search?.trim() || "";
+
+    const apiKey =
+      process.env.NEWS_API_KEY;
+
+    const params = new URLSearchParams({
+      apiKey,
+      language: "en",
+    });
+
+    let endpoint;
 
     if (search) {
-      url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
-        search
-      )}&language=en&apiKey=${process.env.NEWS_API_KEY}`;
+      endpoint = "everything";
+      params.set("q", search);
     } else {
-      url = `https://newsapi.org/v2/top-headlines?country=us&category=${category}&apiKey=${process.env.NEWS_API_KEY}`;
+      endpoint = "top-headlines";
+      params.set("country", "us");
+      params.set("category", category);
     }
 
-    const response = await fetch(url);
+    const response = await fetch(
+      `https://newsapi.org/v2/${endpoint}?${params.toString()}`
+    );
+
     const data = await response.json();
 
-    res.json(data);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
+    if (
+      !response.ok ||
+      data.status === "error"
+    ) {
+      return res
+        .status(response.status || 500)
+        .json({
+          message:
+            data.message ||
+            "Failed to fetch news",
+        });
+    }
+
+    return res.json({
+      articles: data.articles || [],
+    });
+  } catch (error) {
+    console.error(
+      "News fetch error:",
+      error.message
+    );
+
+    return res.status(500).json({
       message: "Failed to fetch news",
     });
   }
