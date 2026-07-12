@@ -8,7 +8,7 @@ dotenv.config({
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
-dotenv.config();
+
 connectDB();
 
 const app = express();
@@ -40,31 +40,6 @@ app.use(
     credentials: true,
   })
 );
-app.use((error, req, res, next) => {
-  if (error.message === "Not allowed by CORS") {
-    return res.status(403).json({
-      message: "Frontend origin is not allowed by CORS",
-    });
-  }
-
-  return next(error);
-});
-
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(
-        new Error("Not allowed by CORS")
-      );
-    },
-    credentials: true,
-  })
-);
-
 
 app.use(
   express.json({
@@ -88,15 +63,27 @@ app.get("/", (req, res) => {
   res.send("News AI Backend is running");
 });
 
-app.use((error, req, res, next) => {
+app.use((error, req, res) => {
   if (error.type === "entity.too.large") {
     return res.status(413).json({
-      message: "Profile image is too large. Please choose a smaller image.",
+      message:
+        "Profile image is too large. Please choose a smaller image.",
     });
   }
 
-  return next(error);
+  if (error.message === "Not allowed by CORS") {
+    return res.status(403).json({
+      message: "Frontend origin is not allowed by CORS",
+    });
+  }
+
+  console.error("Unhandled server error:", error);
+
+  return res.status(500).json({
+    message: "Internal server error",
+  });
 });
+
 console.log(
   "Gemini configured:",
   Boolean(process.env.GEMINI_API_KEY)
