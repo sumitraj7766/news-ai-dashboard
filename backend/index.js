@@ -21,14 +21,17 @@ const allowedOrigins = [
 app.use(
   cors({
     origin(origin, callback) {
-      const isAllowedVercelDomain =
+      const isAllowedDeploymentDomain =
         typeof origin === "string" &&
-        origin.endsWith(".vercel.app");
+        (
+          origin.endsWith(".vercel.app") ||
+          origin.endsWith(".netlify.app")
+        );
 
       if (
         !origin ||
         allowedOrigins.includes(origin) ||
-        isAllowedVercelDomain
+        isAllowedDeploymentDomain
       ) {
         return callback(null, true);
       }
@@ -40,7 +43,6 @@ app.use(
     credentials: true,
   })
 );
-
 app.use(
   express.json({
     limit: "20mb",
